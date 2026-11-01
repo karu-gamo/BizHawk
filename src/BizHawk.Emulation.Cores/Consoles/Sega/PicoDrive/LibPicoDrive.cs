@@ -11,6 +11,20 @@ namespace BizHawk.Emulation.Cores.Consoles.Sega.PicoDrive
 		public new class FrameInfo : LibWaterboxCore.FrameInfo
 		{
 			public int Buttons;
+
+			// XE-1AP analog values, 0..255 with 128 = center
+			public int P1StickX;
+			public int P1StickY;
+			public int P1Throttle;
+			public int P2StickX;
+			public int P2StickY;
+			public int P2Throttle;
+		}
+
+		public enum ControllerType : int
+		{
+			SixButton = 0,
+			XE1AP = 1,
 		}
 
 		[UnmanagedFunctionPointer(CC)]
@@ -26,10 +40,12 @@ namespace BizHawk.Emulation.Cores.Consoles.Sega.PicoDrive
 		}
 
 		/// <param name="cd">If TRUE, load a CD and not a cart.</param>
+		/// <param name="port1Device">device plugged into port 1</param>
+		/// <param name="port2Device">device plugged into port 2</param>
 		/// <param name="_32xPreinit">If TRUE, preallocate 32X data structures.  When set to false,
 		///		32X games will still run, but will not have memory domains</param>
 		[BizImport(CC)]
-		public abstract bool Init(bool cd, bool _32xPreinit, Region regionAutoOrder, Region regionOverride);
+		public abstract bool Init(bool cd, bool _32xPreinit, Region regionAutoOrder, Region regionOverride, ControllerType port1Device, ControllerType port2Device);
 
 		public const int CD_MAX_TRACKS = 100;
 

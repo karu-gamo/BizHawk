@@ -233,6 +233,93 @@ static u32 read_nothing(int i, u32 out_bits)
   return 0xff;
 }
 
+
+// -----------------------------------------------------------------
+// XE-1AP analog controller
+// protocol ported from Genesis Plus GX (core/input_hw/xe_1ap.c, Copyright (C) Eke-Eke)
+
+#define XE_1AP_LATENCY 3
+
+int PicoXeAnalog[2][3] = { { 128, 128, 128 }, { 128, 128, 128 } };
+
+static struct
+{
+  u8 State;
+  u8 Counter;
+  u8 Latency;
+} xe_1ap[2];
+
+static u8 port_is_xe_1ap[2];
+
+static void xe_1ap_reset(int i)
+{
+  xe_1ap[i].State = 0x40;
+  xe_1ap[i].Counter = 11;
+  xe_1ap[i].Latency = 0;
+}
+
+static u32 read_xe_1ap(int i, u32 out_bits)
+{
+  u32 pad = PicoPadInt[i];
+  u32 data;
+
+  switch (xe_1ap[i].Counter)
+  {
+    case 0: // E1 E2 Start Select (active low)
+      data = (~pad >> 6) & 0x0f;
+      break;
+    case 1: // A/A' B/B' C D (active low)
+      data = (~pad & 0x0f) & ~((pad >> 2) & 0x0c);
+      break;
+    case 2: data = (PicoXeAnalog[i][0] >> 4) & 0x0f; break; // CH0 high (stick X)
+    case 3: data = (PicoXeAnalog[i][1] >> 4) & 0x0f; break; // CH1 high (stick Y)
+    case 4: data = 0; break;                                // CH2 high (N/A)
+    case 5: data = (PicoXeAnalog[i][2] >> 4) & 0x0f; break; // CH3 high (throttle)
+    case 6: data = PicoXeAnalog[i][0] & 0x0f; break;        // CH0 low
+    case 7: data = PicoXeAnalog[i][1] & 0x0f; break;        // CH1 low
+    case 8: data = 0; break;                                // CH2 low (N/A)
+    case 9: data = PicoXeAnalog[i][2] & 0x0f; break;        // CH3 low
+    case 11: // A B A' B' (active low)
+      data = (~pad >> 2) & 0x0f;
+      break;
+    default:
+      data = 0x0f;
+      break;
+  }
+
+  // TL = current data cycle parity
+  data |= (xe_1ap[i].Counter & 1) << 4;
+
+  // TR = data valid (0) / not ready (1)
+  if (xe_1ap[i].Latency)
+  {
+    if (xe_1ap[i].Latency > 1)
+      data |= 0x20;
+    xe_1ap[i].Latency--;
+  }
+  else if (xe_1ap[i].Counter <= 10)
+  {
+    xe_1ap[i].Counter++;
+    xe_1ap[i].Latency = XE_1AP_LATENCY;
+  }
+
+  return data | (out_bits & 0x40);
+}
+
+static void write_xe_1ap(int i, u32 data, u32 mask)
+{
+  data = (xe_1ap[i].State & ~mask) | (data & mask);
+
+  // TH 1->0 starts a new acquisition cycle
+  if (!(data & 0x40) && (xe_1ap[i].State & 0x40))
+  {
+    xe_1ap[i].Counter = 0;
+    xe_1ap[i].Latency = XE_1AP_LATENCY;
+  }
+
+  xe_1ap[i].State = data;
+}
+
 typedef u32 (port_read_func)(int index, u32 out_bits);
 
 static port_read_func *port_readers[3] = {
@@ -277,12 +364,22 @@ void PicoSetInputDevice(int port, enum input_device device)
     func = read_pad_6btn;
     break;
 
+  case PICO_INPUT_XE_1AP:
+    func = port < 2 ? read_xe_1ap : read_nothing;
+    break;
+
   default:
     func = read_nothing;
     break;
   }
 
   port_readers[port] = func;
+
+  if (port < 2)
+  {
+    port_is_xe_1ap[port] = func == read_xe_1ap;
+    xe_1ap_reset(port);
+  }
 }
 
 NOINLINE u32 io_ports_read(u32 a)
@@ -313,6 +410,14 @@ NOINLINE void io_ports_write(u32 a, u32 d)
 
   // certain IO ports can be used as RAM
   Pico.ioports[a] = d;
+
+  // XE-1AP: data (1,2) or ctrl (4,5) register changed
+  if (1 <= a && a <= 5 && a != 3)
+  {
+    int port = a <= 2 ? a - 1 : a - 4;
+    if (port_is_xe_1ap[port])
+      write_xe_1ap(port, Pico.ioports[port + 1], Pico.ioports[port + 4]);
+  }
 }
 
 // lame..

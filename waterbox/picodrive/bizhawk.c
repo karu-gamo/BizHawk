@@ -96,6 +96,7 @@ typedef struct
 {
 	FrameInfo b;
 	uint32_t Buttons;
+	int32_t Analog[6]; // XE-1AP: P1 X/Y/Throttle, P2 X/Y/Throttle (0..255, 128 = center)
 } MyFrameInfo;
 
 static int video_start_line;
@@ -138,7 +139,7 @@ static const uint8_t *TryLoadBios(const char *name)
 	return ret;
 }
 
-ECL_EXPORT int Init(int cd, int _32xPreinit, int regionAutoOrder, int regionOverride)
+ECL_EXPORT int Init(int cd, int _32xPreinit, int regionAutoOrder, int regionOverride, int port1Device, int port2Device)
 {
 	PicoAutoRgnOrder = regionAutoOrder;
 	PicoRegionOverride = regionOverride;
@@ -168,8 +169,9 @@ ECL_EXPORT int Init(int cd, int _32xPreinit, int regionAutoOrder, int regionOver
 	PsndOut = sound_buffer;
 	PicoWriteSound = SoundCallback;
 
-	PicoSetInputDevice(0, PICO_INPUT_PAD_6BTN);
-	PicoSetInputDevice(1, PICO_INPUT_PAD_6BTN);
+	// 0 = 6 button pad, 1 = XE-1AP analog controller
+	PicoSetInputDevice(0, port1Device == 1 ? PICO_INPUT_XE_1AP : PICO_INPUT_PAD_6BTN);
+	PicoSetInputDevice(1, port2Device == 1 ? PICO_INPUT_XE_1AP : PICO_INPUT_PAD_6BTN);
 	PsndRerate(0);
 
 	PicoDrawSetOutFormat(PDF_RGB555, 0); // TODO: what is "use_32x_line_mode"?
@@ -211,6 +213,11 @@ ECL_EXPORT void FrameAdvance(MyFrameInfo *f)
 	PicoInputWasRead = 0;
 	PicoPad[0] = f->Buttons & 0xfff;
 	PicoPad[1] = f->Buttons >> 12 & 0xfff;
+	for (int i = 0; i < 6; i++)
+	{
+		int v = f->Analog[i];
+		PicoXeAnalog[i / 3][i % 3] = v < 0 ? 0 : v > 255 ? 255 : v;
+	}
 	if ((f->Buttons & 0x1000000) > (PrevButtons & 0x1000000))
 		PicoPower();
 	if ((f->Buttons & 0x2000000) > (PrevButtons & 0x2000000))

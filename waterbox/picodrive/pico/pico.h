@@ -233,8 +233,14 @@ enum input_device {
   PICO_INPUT_NOTHING,
   PICO_INPUT_PAD_3BTN,
   PICO_INPUT_PAD_6BTN,
+  PICO_INPUT_XE_1AP,
 };
 void PicoSetInputDevice(int port, enum input_device device);
+
+// XE-1AP analog controller state (per port 0/1)
+// buttons go in PicoPad[port]: bit0 D, 1 C, 2 B', 3 A', 4 B, 5 A, 6 Select, 7 Start, 8 E2, 9 E1
+// analog: [0] stick X (0=left), [1] stick Y (0=up), [2] throttle (255=forward); 128 = center
+extern int PicoXeAnalog[2][3];
 
 #ifdef __cplusplus
 } // End of extern "C"

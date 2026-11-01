@@ -881,6 +881,16 @@
 			"P1 Z": "D, J1 B6, X1 RightShoulder",
 			"P1 Mode": "E, J1 B9, X1 Back"
 		},
+		"PicoDrive Genesis Controller (XE-1AP)": {
+			"P1 XE A": "Z, J1 B1, X1 A",
+			"P1 XE B": "X, J1 B2, X1 B",
+			"P1 XE C": "C, J1 B3, X1 X",
+			"P1 XE D": "V, J1 B4, X1 Y",
+			"P1 XE E1": "A, J1 B5, X1 LeftShoulder",
+			"P1 XE E2": "S, J1 B6, X1 RightShoulder",
+			"P1 XE Start": "Enter, J1 B10, X1 Start",
+			"P1 XE Select": "E, J1 B9, X1 Back"
+		},
 		"WonderSwan Controller": {
 			"P1 X1": "Up, J1 POV1U, X1 DpadUp, X1 LStickUp",
 			"P1 X3": "Down, J1 POV1D, X1 DpadDown, X1 LStickDown",
@@ -1506,6 +1516,23 @@
 				"Value": "X1 LeftThumbY Axis",
 				"Mult": 0.1,
 				"Deadzone": 0.0
+			}
+		},
+		"PicoDrive Genesis Controller (XE-1AP)": {
+			"P1 Stick X": {
+				"Value": "X1 LeftThumbX Axis",
+				"Mult": 1.0,
+				"Deadzone": 0.1
+			},
+			"P1 Stick Y": {
+				"Value": "X1 LeftThumbY Axis",
+				"Mult": 1.0,
+				"Deadzone": 0.1
+			},
+			"P1 Stick Z": {
+				"Value": "X1 RightThumbY Axis",
+				"Mult": 1.0,
+				"Deadzone": 0.1
 			}
 		},
 		"PSX Front Panel": {

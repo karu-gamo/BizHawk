@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 
 using BizHawk.Common;
@@ -86,7 +87,7 @@ namespace BizHawk.Emulation.Cores.Consoles.Sega.PicoDrive
 				(int)_syncSettings.SecondChoice << 4 |
 				(int)_syncSettings.ThirdChoice << 8);
 
-			if (!_core.Init(cd != null, game["32X"], regionAutoOrder, _syncSettings.RegionOverride))
+			if (!_core.Init(cd != null, game["32X"], regionAutoOrder, _syncSettings.RegionOverride, _syncSettings.Port1, _syncSettings.Port2))
 				throw new InvalidOperationException("Core rejected the file!");
 
 			if (cd != null)
@@ -109,7 +110,8 @@ namespace BizHawk.Emulation.Cores.Consoles.Sega.PicoDrive
 			}
 
 			PostInit();
-			ControllerDefinition = PicoDriveController;
+			_portTypes = new[] { _syncSettings.Port1, _syncSettings.Port2 };
+			ControllerDefinition = MakeControllerDefinition(_portTypes);
 			DeterministicEmulation = deterministic;
 			_core.SetCDReadCallback(_cdcallback);
 
@@ -132,25 +134,78 @@ namespace BizHawk.Emulation.Cores.Consoles.Sega.PicoDrive
 			}
 		}.MakeImmutable();
 
-		private static readonly string[] ButtonOrders =
+		// bit order of each port's 12 bit field in FrameInfo.Buttons
+		private static readonly string[] SixButtonOrder =
 		{
-			"P1 Up", "P1 Down", "P1 Left", "P1 Right", "P1 B", "P1 C", "P1 A", "P1 Start", "P1 Z", "P1 Y", "P1 X", "P1 Mode",
-			"P2 Up", "P2 Down", "P2 Left", "P2 Right", "P2 B", "P2 C", "P2 A", "P2 Start", "P2 Z", "P2 Y", "P2 X", "P2 Mode",
-			"Power", "Reset"
+			"Up", "Down", "Left", "Right", "B", "C", "A", "Start", "Z", "Y", "X", "Mode"
 		};
+
+		// XE-1AP: must match the layout read_xe_1ap() expects in waterbox/picodrive/pico/memory.c
+		private static readonly string[] Xe1apOrder =
+		{
+			"XE D", "XE C", "XE B2", "XE A2", "XE B", "XE A", "XE Select", "XE Start", "XE E2", "XE E1"
+		};
+
+		private readonly LibPicoDrive.ControllerType[] _portTypes;
+
+		private static ControllerDefinition MakeControllerDefinition(LibPicoDrive.ControllerType[] ports)
+		{
+			if (ports.All(p => p == LibPicoDrive.ControllerType.SixButton))
+				return PicoDriveController;
+
+			var def = new ControllerDefinition("PicoDrive Genesis Controller (XE-1AP)");
+			for (var i = 0; i < 2; i++)
+			{
+				var order = ports[i] == LibPicoDrive.ControllerType.XE1AP ? Xe1apOrder : SixButtonOrder;
+				foreach (var s in order)
+					def.BoolButtons.Add($"P{i + 1} {s}");
+			}
+			def.BoolButtons.Add("Power");
+			def.BoolButtons.Add("Reset");
+			for (var i = 0; i < 2; i++)
+			{
+				if (ports[i] == LibPicoDrive.ControllerType.XE1AP)
+					def.AddXYZTriple($"P{i + 1} Stick {{0}}", (-128).RangeTo(127), 0);
+			}
+			return def.MakeImmutable();
+		}
+
+		private static int ToXeAnalog(int v) => Math.Min(Math.Max(v + 128, 0), 255);
 
 		protected override LibWaterboxCore.FrameInfo FrameAdvancePrep(IController controller, bool render, bool rendersound)
 		{
 			var b = 0;
-			var v = 1;
-			foreach (var s in ButtonOrders)
+			for (var i = 0; i < 2; i++)
 			{
-				if (controller.IsPressed(s))
-					b |= v;
-				v <<= 1;
+				var order = _portTypes[i] == LibPicoDrive.ControllerType.XE1AP ? Xe1apOrder : SixButtonOrder;
+				for (var j = 0; j < order.Length; j++)
+				{
+					if (controller.IsPressed($"P{i + 1} {order[j]}"))
+						b |= 1 << (i * 12 + j);
+				}
+			}
+			if (controller.IsPressed("Power"))
+				b |= 1 << 24;
+			if (controller.IsPressed("Reset"))
+				b |= 1 << 25;
+
+			var f = new LibPicoDrive.FrameInfo { Buttons = b };
+			// BizHawk axes: X+ = right, Y+ = up, Z+ = throttle forward
+			// XE-1AP: X 0 = left, Y 0 = up, throttle 255 = forward
+			if (_portTypes[0] == LibPicoDrive.ControllerType.XE1AP)
+			{
+				f.P1StickX = ToXeAnalog(controller.AxisValue("P1 Stick X"));
+				f.P1StickY = ToXeAnalog(-controller.AxisValue("P1 Stick Y"));
+				f.P1Throttle = ToXeAnalog(controller.AxisValue("P1 Stick Z"));
+			}
+			if (_portTypes[1] == LibPicoDrive.ControllerType.XE1AP)
+			{
+				f.P2StickX = ToXeAnalog(controller.AxisValue("P2 Stick X"));
+				f.P2StickY = ToXeAnalog(-controller.AxisValue("P2 Stick Y"));
+				f.P2Throttle = ToXeAnalog(controller.AxisValue("P2 Stick Z"));
 			}
 			DriveLightOn = false;
-			return new LibPicoDrive.FrameInfo { Buttons = b };
+			return f;
 		}
 
 		private static byte[] GetTOC(Disc cd)
@@ -236,6 +291,16 @@ namespace BizHawk.Emulation.Cores.Consoles.Sega.PicoDrive
 			[DefaultValue(LibPicoDrive.Region.Auto)]
 			[Description("When region is set to automatic, lowest priority region to use if the game supports multiple regions")]
 			public LibPicoDrive.Region ThirdChoice { get; set; }
+
+			[DisplayName("Port 1 Device")]
+			[DefaultValue(LibPicoDrive.ControllerType.SixButton)]
+			[Description("Controller plugged into port 1. XE1AP = Dempa/Micomsoft XE-1AP analog pad (After Burner Complete, Space Harrier 32X, After Burner II, etc.)")]
+			public LibPicoDrive.ControllerType Port1 { get; set; }
+
+			[DisplayName("Port 2 Device")]
+			[DefaultValue(LibPicoDrive.ControllerType.SixButton)]
+			[Description("Controller plugged into port 2.")]
+			public LibPicoDrive.ControllerType Port2 { get; set; }
 
 			public SyncSettings Clone()
 			{
