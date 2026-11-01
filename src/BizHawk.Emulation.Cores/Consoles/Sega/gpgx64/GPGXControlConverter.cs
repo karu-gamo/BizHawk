@@ -193,9 +193,9 @@ namespace BizHawk.Emulation.Cores.Consoles.Sega.gpgx
 			var nz = $"P{player} Stick Z";
 			_converts.Add(() =>
 			{
-				// gpgx's XE-1AP expects 0..255 with 128 = center: X 0 = left, Y 0 = up, throttle 255 = forward
+				// gpgx's XE-1AP expects 0..255 with 128 = center
 				_target.analog[(2 * idx) + 0] = (short)(_source.AxisValue(nx) + 128);
-				_target.analog[(2 * idx) + 1] = (short)(128 - _source.AxisValue(ny));
+				_target.analog[(2 * idx) + 1] = (short)(_source.AxisValue(ny) + 128);
 
 				// +2 is correct in how gpgx internally does this
 				_target.analog[(2 * idx) + 2] = (short)(_source.AxisValue(nz) + 128);

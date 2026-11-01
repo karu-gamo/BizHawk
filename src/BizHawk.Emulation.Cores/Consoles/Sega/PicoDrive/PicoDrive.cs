@@ -190,18 +190,18 @@ namespace BizHawk.Emulation.Cores.Consoles.Sega.PicoDrive
 				b |= 1 << 25;
 
 			var f = new LibPicoDrive.FrameInfo { Buttons = b };
-			// BizHawk axes: X+ = right, Y+ = up, Z+ = throttle forward
-			// XE-1AP: X 0 = left, Y 0 = up, throttle 255 = forward
+			// XE-1AP: X 0 = left, throttle 255 = forward; Y is passed through as-is
+			// (Y sign confirmed by a user in After Burner Complete menus)
 			if (_portTypes[0] == LibPicoDrive.ControllerType.XE1AP)
 			{
 				f.P1StickX = ToXeAnalog(controller.AxisValue("P1 Stick X"));
-				f.P1StickY = ToXeAnalog(-controller.AxisValue("P1 Stick Y"));
+				f.P1StickY = ToXeAnalog(controller.AxisValue("P1 Stick Y"));
 				f.P1Throttle = ToXeAnalog(controller.AxisValue("P1 Stick Z"));
 			}
 			if (_portTypes[1] == LibPicoDrive.ControllerType.XE1AP)
 			{
 				f.P2StickX = ToXeAnalog(controller.AxisValue("P2 Stick X"));
-				f.P2StickY = ToXeAnalog(-controller.AxisValue("P2 Stick Y"));
+				f.P2StickY = ToXeAnalog(controller.AxisValue("P2 Stick Y"));
 				f.P2Throttle = ToXeAnalog(controller.AxisValue("P2 Stick Z"));
 			}
 			DriveLightOn = false;
