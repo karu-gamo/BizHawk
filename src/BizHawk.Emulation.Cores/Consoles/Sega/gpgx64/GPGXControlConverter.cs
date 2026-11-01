@@ -105,6 +105,8 @@ namespace BizHawk.Emulation.Cores.Consoles.Sega.gpgx
 		[
 			new("XE A", LibGPGX.INPUT_KEYS.INPUT_XE_A),
 			new("XE B", LibGPGX.INPUT_KEYS.INPUT_XE_B),
+			new("XE A2", LibGPGX.INPUT_KEYS.INPUT_XE_A2),
+			new("XE B2", LibGPGX.INPUT_KEYS.INPUT_XE_B2),
 			new("XE C", LibGPGX.INPUT_KEYS.INPUT_XE_C),
 			new("XE D", LibGPGX.INPUT_KEYS.INPUT_XE_D),
 			new("XE Start", LibGPGX.INPUT_KEYS.INPUT_XE_START),
@@ -191,11 +193,12 @@ namespace BizHawk.Emulation.Cores.Consoles.Sega.gpgx
 			var nz = $"P{player} Stick Z";
 			_converts.Add(() =>
 			{
-				_target.analog[(2 * idx) + 0] = (short)_source.AxisValue(nx);
-				_target.analog[(2 * idx) + 1] = (short)_source.AxisValue(ny);
+				// gpgx's XE-1AP expects 0..255 with 128 = center: X 0 = left, Y 0 = up, throttle 255 = forward
+				_target.analog[(2 * idx) + 0] = (short)(_source.AxisValue(nx) + 128);
+				_target.analog[(2 * idx) + 1] = (short)(128 - _source.AxisValue(ny));
 
 				// +2 is correct in how gpgx internally does this
-				_target.analog[(2 * idx) + 2] = (short)(_source.AxisValue(nz));
+				_target.analog[(2 * idx) + 2] = (short)(_source.AxisValue(nz) + 128);
 			});
 		}
 
@@ -276,6 +279,7 @@ namespace BizHawk.Emulation.Cores.Consoles.Sega.gpgx
 						player++;
 						break;
 					case LibGPGX.INPUT_DEVICE.DEVICE_SPORTSPAD:
+					case LibGPGX.INPUT_DEVICE.DEVICE_GRAPHIC_BOARD:
 					case LibGPGX.INPUT_DEVICE.DEVICE_TEREBI:
 						throw new NotImplementedException();
 					case LibGPGX.INPUT_DEVICE.DEVICE_ACTIVATOR:

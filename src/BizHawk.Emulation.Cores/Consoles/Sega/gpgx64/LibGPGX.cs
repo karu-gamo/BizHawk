@@ -165,10 +165,11 @@ namespace BizHawk.Emulation.Cores.Consoles.Sega.gpgx
 			DEVICE_LIGHTGUN = 0x04, // Sega Light Phaser, Menacer or Konami Justifiers
 			DEVICE_PADDLE = 0x05,   // Sega Paddle Control
 			DEVICE_SPORTSPAD = 0x06,// Sega Sports Pad
-			DEVICE_PICO = 0x07,     // PICO tablet
-			DEVICE_TEREBI = 0x08,   // Terebi Oekaki tablet
-			DEVICE_XE_A1P = 0x09,   // XE-A1P analog controller
-			DEVICE_ACTIVATOR = 0x0a,// Activator
+			DEVICE_GRAPHIC_BOARD = 0x07, // Sega Graphic Board
+			DEVICE_PICO = 0x08,     // PICO tablet
+			DEVICE_TEREBI = 0x09,   // Terebi Oekaki tablet
+			DEVICE_XE_A1P = 0x0a,   // XE-A1P analog controller
+			DEVICE_ACTIVATOR = 0x0b,// Activator
 		}
 
 		public enum CDLog_AddrType
@@ -240,12 +241,14 @@ namespace BizHawk.Emulation.Cores.Consoles.Sega.gpgx
 			INPUT_PICO_RED = 0x0010,
 
 			/* XE-1AP specific bitmask */
-			INPUT_XE_E1 = 0x0800,
-			INPUT_XE_E2 = 0x0400,
-			INPUT_XE_START = 0x0200,
-			INPUT_XE_SELECT = 0x0100,
-			INPUT_XE_A = 0x0080,
-			INPUT_XE_B = 0x0040,
+			INPUT_XE_E1 = 0x2000,
+			INPUT_XE_E2 = 0x1000,
+			INPUT_XE_START = 0x0800,
+			INPUT_XE_SELECT = 0x0400,
+			INPUT_XE_A = 0x0200,
+			INPUT_XE_B = 0x0100,
+			INPUT_XE_A2 = 0x0080,
+			INPUT_XE_B2 = 0x0040,
 			INPUT_XE_C = 0x0020,
 			INPUT_XE_D = 0x0010,
 
